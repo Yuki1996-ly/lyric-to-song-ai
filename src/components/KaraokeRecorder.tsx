@@ -58,16 +58,20 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
   // 初始化音频权限
   useEffect(() => {
     const requestMicrophonePermission = async () => {
+      console.log('🎤 [DEBUG] 开始请求麦克风权限...');
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log('✅ [DEBUG] 麦克风权限获取成功');
         setHasPermission(true);
         // 立即停止流，只是为了获取权限
         stream.getTracks().forEach(track => track.stop());
+        console.log('🔇 [DEBUG] 权限测试流已停止');
       } catch (error) {
-        console.error('麦克风权限被拒绝:', error);
+        console.error('❌ [DEBUG] 麦克风权限被拒绝:', error);
+        setHasPermission(false);
         toast({
-          title: "需要麦克风权限",
-          description: "请允许访问麦克风以使用跟唱功能",
+          title: "麦克风权限被拒绝",
+          description: "请在浏览器设置中允许麦克风访问",
           variant: "destructive"
         });
       }
@@ -81,15 +85,38 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
   // 初始化原始音频
   useEffect(() => {
     if (originalAudioUrl && !originalAudioRef.current) {
-      originalAudioRef.current = new Audio(originalAudioUrl);
-      originalAudioRef.current.addEventListener('timeupdate', handleOriginalAudioTimeUpdate);
-      originalAudioRef.current.addEventListener('ended', handleOriginalAudioEnded);
+      console.log('🎵 [DEBUG] 初始化原始音频URL:', originalAudioUrl);
+      try {
+        originalAudioRef.current = new Audio(originalAudioUrl);
+        
+        // 添加错误处理
+        originalAudioRef.current.addEventListener('error', (e) => {
+          console.error('❌ [DEBUG] 音频加载错误:', e);
+          console.error('❌ [DEBUG] 音频URL:', originalAudioUrl);
+        });
+        
+        originalAudioRef.current.addEventListener('loadstart', () => {
+          console.log('🔄 [DEBUG] 音频开始加载');
+        });
+        
+        originalAudioRef.current.addEventListener('canplay', () => {
+          console.log('✅ [DEBUG] 音频可以播放');
+        });
+        
+        originalAudioRef.current.addEventListener('timeupdate', handleOriginalAudioTimeUpdate);
+        originalAudioRef.current.addEventListener('ended', handleOriginalAudioEnded);
+      } catch (error) {
+        console.error('❌ [DEBUG] 创建音频对象失败:', error);
+      }
     }
 
     return () => {
       if (originalAudioRef.current) {
         originalAudioRef.current.removeEventListener('timeupdate', handleOriginalAudioTimeUpdate);
         originalAudioRef.current.removeEventListener('ended', handleOriginalAudioEnded);
+        originalAudioRef.current.removeEventListener('error', () => {});
+        originalAudioRef.current.removeEventListener('loadstart', () => {});
+        originalAudioRef.current.removeEventListener('canplay', () => {});
       }
     };
   }, [originalAudioUrl]);
@@ -152,7 +179,11 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
 
   // 开始录音
   const startRecording = async () => {
+    console.log('🎙️ [DEBUG] 开始录音函数被调用');
+    console.log('🔐 [DEBUG] 权限状态:', hasPermission);
+    
     if (!hasPermission) {
+      console.log('❌ [DEBUG] 没有麦克风权限，无法开始录音');
       toast({
         title: "需要麦克风权限",
         description: "请允许访问麦克风",
@@ -162,6 +193,7 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
     }
 
     try {
+      console.log('🎤 [DEBUG] 正在获取麦克风流...');
       // 获取麦克风流
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -170,13 +202,18 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
           autoGainControl: true
         }
       });
+      console.log('✅ [DEBUG] 麦克风流获取成功');
 
       // 设置音频上下文和分析器
+      console.log('🔧 [DEBUG] 创建音频上下文...');
       audioContextRef.current = new AudioContext();
+      console.log('🔧 [DEBUG] 音频上下文状态:', audioContextRef.current.state);
+      
       const source = audioContextRef.current.createMediaStreamSource(stream);
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 2048;
       source.connect(analyserRef.current);
+      console.log('✅ [DEBUG] 音频分析器设置完成');
 
       // 设置媒体录制器
       mediaRecorderRef.current = new MediaRecorder(stream);
@@ -184,13 +221,25 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
       analysisDataRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
+        console.log('📦 [DEBUG] 录音数据可用，大小:', event.data.size);
         if (event.data.size > 0) {
           recordedChunksRef.current.push(event.data);
         }
       };
 
       mediaRecorderRef.current.onstop = () => {
+        console.log('⏹️ [DEBUG] 录音停止，开始分析');
+        console.log('📊 [DEBUG] 录音数据块数量:', recordedChunksRef.current.length);
         analyzeRecording();
+      };
+      
+      mediaRecorderRef.current.onerror = (event) => {
+        console.error('❌ [DEBUG] 录音错误:', event);
+        toast({
+          title: "录音错误",
+          description: "录音过程中发生错误",
+          variant: "destructive"
+        });
       };
 
       // 纯清唱模式：只录音，完全不播放任何音乐
@@ -254,14 +303,23 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
 
   // 实时音频分析
   const startRealTimeAnalysis = () => {
-    if (!analyserRef.current) return;
+    console.log('📊 [DEBUG] 开始实时音频分析');
+    if (!analyserRef.current) {
+      console.error('❌ [DEBUG] 分析器未初始化，无法开始分析');
+      return;
+    }
 
     const bufferLength = analyserRef.current.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     const pitchArray = new Float32Array(bufferLength);
+    console.log('🔧 [DEBUG] 分析缓冲区大小:', bufferLength);
 
+    let analysisCount = 0;
     const analyze = () => {
-      if (!analyserRef.current || !isRecording) return;
+      if (!analyserRef.current || !isRecording) {
+        console.log('⏹️ [DEBUG] 停止分析 - 分析器状态:', !!analyserRef.current, '录音状态:', isRecording);
+        return;
+      }
 
       analyserRef.current.getByteFrequencyData(dataArray);
       analyserRef.current.getFloatFrequencyData(pitchArray);
@@ -288,6 +346,12 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
         timestamp: Date.now() - startTimeRef.current
       });
 
+      analysisCount++;
+      // 每50次分析输出一次调试信息
+      if (analysisCount % 50 === 0) {
+        console.log(`📈 [DEBUG] 分析数据 #${analysisCount} - 音量: ${volume.toFixed(2)}, 音高: ${pitch.toFixed(2)}Hz, 数据点总数: ${analysisDataRef.current.length}`);
+      }
+
       // 计算实时得分（简化版）
       const recentData = analysisDataRef.current.slice(-10);
       const avgVolume = recentData.reduce((sum, d) => sum + d.volume, 0) / recentData.length;
@@ -302,12 +366,22 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
 
   // 分析录音并计算得分
   const analyzeRecording = async () => {
+    console.log('🎯 [DEBUG] 开始分析录音并计算得分');
     const recordingDuration = (Date.now() - startTimeRef.current) / 1000;
     const analysisData = analysisDataRef.current;
+    
+    console.log('⏱️ [DEBUG] 录音时长:', recordingDuration.toFixed(2), '秒');
+    console.log('📊 [DEBUG] 分析数据点数量:', analysisData.length);
+    
+    if (analysisData.length > 0) {
+      console.log('📈 [DEBUG] 前5个数据点:', analysisData.slice(0, 5));
+      console.log('📈 [DEBUG] 后5个数据点:', analysisData.slice(-5));
+    }
 
     // 完全移除时长限制，支持任意时长的录音评分
     // 即使是极短的录音也能获得评分和鼓励
     if (analysisData.length === 0) {
+      console.log('⚠️ [DEBUG] 没有分析数据，给予基础鼓励分');
       // 如果没有分析数据，给予基础鼓励分
       const score: KaraokeScore = {
         totalScore: 50,
@@ -316,12 +390,13 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
         volumeControl: 50,
         beatMatching: 50,
         details: {
-          recordedDuration,
+          recordedDuration: recordingDuration,
           averagePitch: 0,
           pitchVariance: 0,
           rhythmConsistency: 50
         }
       };
+      console.log('✅ [DEBUG] 基础得分已计算:', score);
       setIsAnalyzing(false);
       onScoreCalculated(score);
       toast({
@@ -332,36 +407,45 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
     }
 
     // 清唱模式音频分析
+    console.log('🔍 [DEBUG] 开始纯人声录音分析...');
     const analysisResults = await analyzePureVocalRecording(analysisData, recordingDuration);
+    console.log('📊 [DEBUG] 分析结果:', analysisResults);
 
     // 根据录音时长调整评分策略，支持所有时长
     let finalScore = analysisResults.baseScore;
     let durationBonus = 0;
     
+    console.log('⏱️ [DEBUG] 根据录音时长调整评分策略...');
     if (recordingDuration < 1) {
       // 超短录音 (0-1秒): 基础分50分 + 10分尝试奖励
       finalScore = 50 + 10;
       durationBonus = 10;
+      console.log('🚀 [DEBUG] 超短录音策略 - 基础分:50 + 奖励:10');
     } else if (recordingDuration < 2) {
       // 极短录音 (1-2秒): 基础分55分 + 15分鼓励分
       finalScore = 55 + 15;
       durationBonus = 15;
+      console.log('⚡ [DEBUG] 极短录音策略 - 基础分:55 + 奖励:15');
     } else if (recordingDuration < 5) {
       // 短录音 (2-5秒): 基础评分×0.8 + 20分鼓励分
       finalScore = analysisResults.baseScore * 0.8 + 20;
       durationBonus = 20;
+      console.log('🎵 [DEBUG] 短录音策略 - 基础分×0.8 + 奖励:20, 计算结果:', finalScore.toFixed(2));
     } else if (recordingDuration < 10) {
       // 中等录音 (5-10秒): 基础评分×0.9 + 10分奖励
       finalScore = analysisResults.baseScore * 0.9 + 10;
       durationBonus = 10;
+      console.log('🎶 [DEBUG] 中等录音策略 - 基础分×0.9 + 奖励:10, 计算结果:', finalScore.toFixed(2));
     } else {
       // 长录音 (10秒以上): 标准评分 + 15分完整演唱奖励
       finalScore = analysisResults.baseScore + 15;
       durationBonus = 15;
+      console.log('🎤 [DEBUG] 长录音策略 - 基础分 + 奖励:15, 计算结果:', finalScore.toFixed(2));
     }
     
     // 确保分数在合理范围内，给予更宽松的下限
     const totalScore = Math.min(Math.max(finalScore, 40), 100);
+    console.log('🎯 [DEBUG] 最终得分计算 - 原始分:', finalScore.toFixed(2), '调整后:', totalScore.toFixed(2));
 
     const score: KaraokeScore = {
       totalScore: Math.round(totalScore),
@@ -370,15 +454,18 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
       volumeControl: analysisResults.volumeScore,
       beatMatching: analysisResults.completenessScore,
       details: {
-        recordedDuration,
+        recordedDuration: recordingDuration,
         averagePitch: analysisResults.averagePitch,
         pitchVariance: analysisResults.pitchVariance,
         rhythmConsistency: analysisResults.rhythmScore
       }
     };
 
+    console.log('🏆 [DEBUG] 最终评分对象:', score);
+    console.log('📤 [DEBUG] 调用评分回调函数...');
     setIsAnalyzing(false);
     onScoreCalculated(score);
+    console.log('✅ [DEBUG] 评分计算完成并已回调');
 
     // 根据录音时长提供不同的反馈
     let feedbackTitle = `🎉 清唱完成！得分: ${Math.round(totalScore)}`;
@@ -455,13 +542,25 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
 
   // 切换原始音频播放
   const toggleOriginalAudio = () => {
-    if (!originalAudioRef.current) return;
+    if (!originalAudioRef.current) {
+      console.log('⚠️ [DEBUG] 原始音频引用不存在');
+      return;
+    }
 
     if (isPlayingOriginal) {
+      console.log('⏸️ [DEBUG] 暂停原始音频');
       originalAudioRef.current.pause();
       setIsPlayingOriginal(false);
     } else {
-      originalAudioRef.current.play();
+      console.log('▶️ [DEBUG] 播放原始音频');
+      originalAudioRef.current.play().catch(error => {
+        console.error('❌ [DEBUG] 音频播放失败:', error);
+        toast({
+          title: "音频播放失败",
+          description: "无法播放原始音频文件",
+          variant: "destructive"
+        });
+      });
       setIsPlayingOriginal(true);
     }
   };
