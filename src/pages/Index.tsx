@@ -6,20 +6,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { deepseekApi } from "@/services/deepseekApi";
+import { minimaxApi } from "@/services/minimaxApi";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 const Index = () => {
   const [diaryText, setDiaryText] = useState("");
   const [style, setStyle] = useState("");
   const [tempo, setTempo] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleGenerateSong = async () => {
     if (!diaryText.trim()) {
       toast({
-        title: "Please write something first!",
-        description: "Enter your diary or daily thoughts to generate a song.",
+        title: "请先写点什么！",
+        description: "输入您的日记或想法来生成歌曲。",
         variant: "destructive",
       });
       return;
@@ -27,8 +31,8 @@ const Index = () => {
 
     if (!style || !tempo) {
       toast({
-        title: "Choose your style and tempo",
-        description: "Select both music style and tempo to generate your song.",
+        title: "选择风格和节奏",
+        description: "请选择音乐风格和节奏来生成您的歌曲。",
         variant: "destructive",
       });
       return;
@@ -36,22 +40,65 @@ const Index = () => {
 
     setIsGenerating(true);
     
-    // Simulate AI generation process
-    toast({
-      title: "Creating your song! 🎵",
-      description: "AI is turning your words into music...",
-    });
-
-    // Simulate API call delay
-    setTimeout(() => {
-      setIsGenerating(false);
+    try {
+      // 第一步：生成歌词
+      setGenerationStep("正在生成歌词...");
       toast({
-        title: "Song generated successfully! 🎉",
-        description: "Your personalized song is ready to play!",
+        title: "开始创作您的歌曲! 🎵",
+        description: "AI正在根据您的文字生成歌词...",
       });
-      // Navigate to player page with generated song
-      navigate("/player");
-    }, 3000);
+
+      const lyrics = await deepseekApi.generateLyrics(diaryText, style, tempo);
+      
+      // 第二步：生成音乐
+      setGenerationStep("正在生成音乐...");
+      toast({
+        title: "歌词生成完成! 🎤",
+        description: "现在正在为您的歌词配上音乐...",
+      });
+
+      const audioBlob = await minimaxApi.generateMusic(lyrics, style, tempo);
+      const audioUrl = minimaxApi.createAudioUrl(audioBlob);
+
+      // 将生成的歌曲数据存储到localStorage或状态管理中
+      const songData = {
+        id: Date.now().toString(),
+        title: `我的歌曲 - ${new Date().toLocaleDateString()}`,
+         lyrics: lyrics,
+        audioUrl: audioUrl,
+        style: style,
+        tempo: tempo,
+        originalText: diaryText,
+        createdAt: new Date().toISOString()
+      };
+
+      // 存储到localStorage
+      const existingSongs = JSON.parse(localStorage.getItem('generatedSongs') || '[]');
+      existingSongs.unshift(songData);
+      localStorage.setItem('generatedSongs', JSON.stringify(existingSongs));
+      localStorage.setItem('currentSong', JSON.stringify(songData));
+
+      setIsGenerating(false);
+      setGenerationStep("");
+      
+      toast({
+        title: "歌曲生成成功! 🎉",
+        description: "您的个性化歌曲已准备好播放！",
+      });
+      
+      // 导航到播放器页面
+      navigate(`/player/${songData.id}`);
+    } catch (error) {
+      console.error('Error generating song:', error);
+      setIsGenerating(false);
+      setGenerationStep("");
+      
+      toast({
+        title: "生成失败 😞",
+        description: error instanceof Error ? error.message : "生成歌曲时出现错误，请重试。",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -123,12 +170,12 @@ const Index = () => {
                 className="w-full h-14 text-lg font-semibold gradient-main hover:opacity-90 transition-all duration-300 btn-shadow"
               >
                 {isGenerating ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Generating Your Song...
+                  <div className="flex items-center gap-3">
+                    <LoadingSpinner size="sm" className="text-white" />
+                    <span>{generationStep || "正在生成您的歌曲..."}</span>
                   </div>
                 ) : (
-                  "🎵 Generate My Song"
+                  "🎵 生成我的歌曲"
                 )}
               </Button>
             </div>

@@ -1,32 +1,96 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { Heart, MessageCircle, Share2, Save, ArrowLeft, Play, Pause, SkipBack, SkipForward } from "lucide-react";
+import { Heart, MessageCircle, Share2, Save, ArrowLeft, Play, Pause, SkipBack, SkipForward, Mic } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import KTVEffects from "@/components/KTVEffects";
+import KaraokeRecorder, { KaraokeScore } from "@/components/KaraokeRecorder";
+import KaraokeScoreDisplay from "@/components/KaraokeScoreDisplay";
+import "@/components/KTVEffects.css";
+
+interface SongData {
+  id: string;
+  title: string;
+  lyrics: string;
+  audioUrl: string;
+  style: string;
+  tempo: string;
+  originalText: string;
+  createdAt: string;
+}
 
 const PlayerPage = () => {
   const navigate = useNavigate();
+  const { songId } = useParams();
   const { toast } = useToast();
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration] = useState(236); // 3:56 in seconds
+  const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState([75]);
   const [currentLyricIndex, setCurrentLyricIndex] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [songData, setSongData] = useState<SongData | null>(null);
+  const [parsedLyrics, setParsedLyrics] = useState<Array<{time: number, text: string}>>([]);
+  const [showKaraoke, setShowKaraoke] = useState(false);
+  const [karaokeScore, setKaraokeScore] = useState<KaraokeScore | null>(null);
+  const [showScoreDisplay, setShowScoreDisplay] = useState(false);
 
-  const lyrics = [
-    { time: 12, text: "Today I woke up feeling so alive" },
-    { time: 18, text: "Coffee in my hand, dreams in my eyes" },
-    { time: 24, text: "Walking down the street with a smile so bright" },
-    { time: 30, text: "Everything's perfect in this morning light" },
-    { time: 36, text: "Life's a song and I'm singing it loud" },
-    { time: 42, text: "Dancing through the days, feeling so proud" },
-    { time: 48, text: "Every moment counts, every breath divine" },
-    { time: 54, text: "This is my story, this life is mine" },
-  ];
+  // 加载歌曲数据
+  useEffect(() => {
+    const loadSongData = () => {
+      if (songId) {
+        // 从localStorage获取特定歌曲
+        const songs = JSON.parse(localStorage.getItem('generatedSongs') || '[]');
+        const song = songs.find((s: SongData) => s.id === songId);
+        if (song) {
+          setSongData(song);
+          return;
+        }
+      }
+      
+      // 如果没有songId或找不到歌曲，尝试获取当前歌曲
+      const currentSong = localStorage.getItem('currentSong');
+      if (currentSong) {
+        setSongData(JSON.parse(currentSong));
+      } else {
+        // 如果没有歌曲数据，返回首页
+        navigate('/');
+      }
+    };
+
+    loadSongData();
+  }, [songId, navigate]);
+
+  // 解析歌词
+  useEffect(() => {
+    if (songData?.lyrics) {
+      const lyrics = parseLyrics(songData.lyrics);
+      setParsedLyrics(lyrics);
+    }
+  }, [songData]);
+
+  // 解析歌词文本，提取时间戳（如果有的话）
+  const parseLyrics = (lyricsText: string) => {
+    const lines = lyricsText.split('\n').filter(line => line.trim());
+    const lyrics: Array<{time: number, text: string}> = [];
+    let currentTime = 0;
+
+    lines.forEach((line, index) => {
+      // 简单的时间分配，每行歌词间隔4秒
+      lyrics.push({
+        time: currentTime,
+        text: line.trim()
+      });
+      currentTime += 4;
+    });
+
+    return lyrics;
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -35,71 +99,165 @@ const PlayerPage = () => {
   };
 
   const togglePlay = () => {
-    setIsPlaying(!isPlaying);
-    if (!isPlaying) {
+    if (!audioRef.current || !songData) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
       toast({
-        title: "🎵 Playing your song",
-        description: "Enjoy your personalized creation!",
+        title: "🎵 播放您的歌曲",
+        description: "享受您的个性化创作！",
       });
     }
+    setIsPlaying(!isPlaying);
   };
+
+  // 音频事件处理
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration);
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      
+      // 更新当前歌词
+      const currentLyric = parsedLyrics.findIndex((lyric, index) => {
+        const nextLyric = parsedLyrics[index + 1];
+        return lyric.time <= audio.currentTime && 
+               (!nextLyric || nextLyric.time > audio.currentTime);
+      });
+      
+      if (currentLyric !== -1) {
+        setCurrentLyricIndex(currentLyric);
+      }
+    };
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [parsedLyrics]);
+
+  // 音量控制
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume[0] / 100;
+    }
+  }, [volume]);
 
   const handleLike = () => {
     setIsLiked(!isLiked);
     toast({
-      title: isLiked ? "Removed from favorites" : "❤️ Added to favorites!",
-      description: isLiked ? "Song removed from your liked songs" : "Song saved to your liked songs",
+      title: isLiked ? "已从收藏中移除" : "❤️ 已添加到收藏！",
+      description: isLiked ? "歌曲已从您的收藏中移除" : "歌曲已保存到您的收藏",
     });
   };
 
   const handleSave = () => {
     setIsSaved(!isSaved);
     toast({
-      title: isSaved ? "Removed from collection" : "💾 Saved to collection!",
-      description: isSaved ? "Song removed from your collection" : "Song saved to your personal collection",
+      title: isSaved ? "已从合集中移除" : "💾 已保存到合集！",
+      description: isSaved ? "歌曲已从您的合集中移除" : "歌曲已保存到您的个人合集",
     });
   };
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     toast({
-      title: "🔗 Link copied!",
-      description: "Share your song with friends and family",
+      title: "🔗 链接已复制！",
+      description: "与朋友和家人分享您的歌曲",
     });
   };
 
-  // Simulate progress
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isPlaying && currentTime < duration) {
-      interval = setInterval(() => {
-        setCurrentTime(prev => {
-          const newTime = prev + 1;
-          // Update current lyric based on time
-          const currentLyric = lyrics.findIndex(lyric => lyric.time <= newTime && 
-            (lyrics[lyrics.findIndex(l => l === lyric) + 1]?.time > newTime || !lyrics[lyrics.findIndex(l => l === lyric) + 1]));
-          if (currentLyric !== -1) {
-            setCurrentLyricIndex(currentLyric);
-          }
-          return newTime;
-        });
-      }, 1000);
+  const handleSeek = (value: number[]) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = value[0];
+      setCurrentTime(value[0]);
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, currentTime, duration]);
+  };
+
+  // 处理跟唱得分
+  const handleKaraokeScore = (score: KaraokeScore) => {
+    setKaraokeScore(score);
+    setShowKaraoke(false);
+    setShowScoreDisplay(true);
+  };
+
+  // 保存跟唱得分到排行榜
+  const handleSaveKaraokeScore = (score: KaraokeScore) => {
+    const existingScores = JSON.parse(localStorage.getItem('karaokeScores') || '[]');
+    const newScore = {
+      id: Date.now().toString(),
+      songId: songData?.id,
+      songTitle: songData?.title,
+      score: score,
+      timestamp: new Date().toISOString()
+    };
+    existingScores.unshift(newScore);
+    localStorage.setItem('karaokeScores', JSON.stringify(existingScores));
+  };
+
+  // 开始跟唱模式
+  const startKaraokeMode = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+    setShowKaraoke(true);
+  };
+
+  if (!songData) {
+     return (
+       <div className="min-h-screen gradient-player text-white flex items-center justify-center">
+         <LoadingSpinner size="lg" text="加载中..." className="text-white" />
+       </div>
+     );
+   }
+
+
 
   return (
     <div className="min-h-screen gradient-player text-white">
+      {/* 隐藏的音频元素 */}
+      {songData?.audioUrl && (
+        <audio
+          ref={audioRef}
+          src={songData.audioUrl}
+          preload="metadata"
+        />
+      )}
+
       {/* Header */}
       <header className="flex justify-between items-center p-6">
-        <h1 className="text-3xl font-bold">Now Playing</h1>
+        <h1 className="text-3xl font-bold">正在播放</h1>
         <Button 
           variant="secondary" 
           onClick={() => navigate("/")}
           className="bg-white text-primary hover:bg-white/90"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
+          返回
         </Button>
       </header>
 
@@ -109,8 +267,8 @@ const PlayerPage = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold">My Life Symphony</h2>
-                <p className="text-muted-foreground">Generated by AI • Pop Style • Medium Tempo</p>
+                <h2 className="text-2xl font-bold">{songData.title}</h2>
+                <p className="text-muted-foreground">AI生成 • {songData.style} • {songData.tempo}</p>
               </div>
               <Button 
                 onClick={handleSave}
@@ -118,13 +276,13 @@ const PlayerPage = () => {
                 className="btn-shadow"
               >
                 <Save className="w-4 h-4 mr-2" />
-                {isSaved ? "Saved" : "Save"}
+                 {isSaved ? "已保存" : "保存"}
               </Button>
             </div>
 
             {/* Lyrics Display */}
             <div className="my-8 h-48 overflow-y-auto border-t pt-6 space-y-2">
-              {lyrics.map((lyric, index) => (
+              {parsedLyrics.map((lyric, index) => (
                 <p 
                   key={index}
                   className={`transition-all duration-300 ${
@@ -160,10 +318,10 @@ const PlayerPage = () => {
                 <div className="flex-1 space-y-2">
                   <Slider
                     value={[currentTime]}
-                    max={duration}
+                    max={duration || 100}
                     step={1}
                     className="w-full"
-                    onValueChange={(value) => setCurrentTime(value[0])}
+                    onValueChange={handleSeek}
                   />
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>{formatTime(currentTime)}</span>
@@ -174,7 +332,7 @@ const PlayerPage = () => {
 
               {/* Action Buttons and Volume */}
               <div className="flex justify-between items-center">
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <Button 
                     variant={isLiked ? "default" : "outline"}
                     onClick={handleLike}
@@ -182,6 +340,13 @@ const PlayerPage = () => {
                   >
                     <Heart className={`w-4 h-4 mr-2 ${isLiked ? "fill-current" : ""}`} />
                     Like
+                  </Button>
+                  <Button 
+                    onClick={startKaraokeMode}
+                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white btn-shadow"
+                  >
+                    <Mic className="w-4 h-4 mr-2" />
+                    跟唱
                   </Button>
                   <Button variant="outline" className="btn-shadow">
                     <MessageCircle className="w-4 h-4 mr-2" />
@@ -208,32 +373,65 @@ const PlayerPage = () => {
           </CardContent>
         </Card>
 
-        {/* Music Visualizer */}
-        <Card className="bg-black/80 border-0 ktv-glow">
-          <CardContent className="p-8">
-            <div className="h-64 flex items-end justify-center gap-2">
-              {/* Animated visualizer bars */}
-              {Array.from({ length: 32 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`bg-gradient-to-t from-primary to-secondary-light w-3 rounded-t transition-all duration-300 ${
-                    isPlaying ? "visualizer-bar" : "h-4"
-                  }`}
-                  style={{
-                    animationDelay: `${i * 50}ms`,
-                    height: isPlaying ? `${Math.random() * 80 + 20}%` : "16px"
-                  }}
-                />
-              ))}
+        {/* KTV Effects & Music Visualizer */}
+        <Card className="bg-black/80 border-0 ktv-glow relative overflow-hidden">
+          <CardContent className="p-0 relative">
+            {/* KTV背景特效 */}
+            <div className="h-80 relative">
+              <KTVEffects 
+                isPlaying={isPlaying}
+                tempo={songData.tempo}
+                style={songData.style}
+                className="absolute inset-0"
+              />
             </div>
-            <div className="text-center mt-6">
-              <p className="text-white/60 text-lg">
-                {isPlaying ? "🎵 Music Visualizer Active" : "🎵 Press play to see the magic"}
-              </p>
+            
+            {/* 音乐可视化器 - 叠加在特效上方 */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent">
+              <div className="h-16 flex items-end justify-center gap-1">
+                {/* Animated visualizer bars */}
+                {Array.from({ length: 24 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`bg-gradient-to-t from-pink-400 via-purple-400 to-blue-400 w-2 rounded-t transition-all duration-300 ${
+                      isPlaying ? "visualizer-bar" : "h-2"
+                    }`}
+                    style={{
+                      animationDelay: `${i * 30}ms`,
+                      height: isPlaying ? `${Math.random() * 60 + 10}%` : "8px"
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="text-center mt-2">
+                <p className="text-white/80 text-sm font-medium">
+                  {isPlaying ? "🎤 KTV模式激活 - 跟着节拍一起摇摆！" : "🎵 点击播放开始KTV体验"}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* 跟唱功能 */}
+        {showKaraoke && songData && (
+          <KaraokeRecorder
+            originalAudioUrl={songData.audioUrl}
+            lyrics={parsedLyrics}
+            onScoreCalculated={handleKaraokeScore}
+            isVisible={showKaraoke}
+          />
+        )}
       </div>
+
+      {/* 跟唱得分显示 */}
+      {showScoreDisplay && karaokeScore && songData && (
+        <KaraokeScoreDisplay
+          score={karaokeScore}
+          songTitle={songData.title}
+          onClose={() => setShowScoreDisplay(false)}
+          onSaveScore={handleSaveKaraokeScore}
+        />
+      )}
     </div>
   );
 };

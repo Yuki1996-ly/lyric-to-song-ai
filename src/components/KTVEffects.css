@@ -1,0 +1,273 @@
+/* KTV背景特效样式 */
+
+/* 霓虹背景 */
+.ktv-neon-bg {
+  background: linear-gradient(45deg, 
+    rgba(255, 0, 150, 0.1) 0%, 
+    rgba(0, 255, 255, 0.1) 25%, 
+    rgba(255, 255, 0, 0.1) 50%, 
+    rgba(150, 0, 255, 0.1) 75%, 
+    rgba(255, 0, 150, 0.1) 100%);
+  background-size: 400% 400%;
+  animation: ktv-gradient 4s ease infinite;
+}
+
+@keyframes ktv-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* 粒子动画 */
+.ktv-particle {
+  animation: ktv-float 3s ease-in-out infinite;
+}
+
+@keyframes ktv-float {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0;
+  }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  50% { 
+    transform: translateY(-20px) rotate(180deg);
+    opacity: 0.8;
+  }
+}
+
+/* 小人角色基础样式 */
+.ktv-character {
+  transform-origin: center bottom;
+  transition: all 0.3s ease;
+}
+
+/* 小人跳舞动画 */
+.ktv-character-dancing {
+  animation: ktv-dance 2s ease-in-out infinite;
+}
+
+@keyframes ktv-dance {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+  25% { 
+    transform: translateY(-10px) rotate(-2deg) scale(1.05);
+  }
+  50% { 
+    transform: translateY(-5px) rotate(0deg) scale(1.1);
+  }
+  75% { 
+    transform: translateY(-10px) rotate(2deg) scale(1.05);
+  }
+}
+
+/* 头部动画 */
+.ktv-head {
+  animation: ktv-head-bob 1s ease-in-out infinite;
+}
+
+@keyframes ktv-head-bob {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-3deg); }
+}
+
+/* 眼睛眨眼动画 */
+.ktv-eye {
+  animation: ktv-blink 3s ease-in-out infinite;
+}
+
+@keyframes ktv-blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+
+/* 嘴巴说唱动画 */
+.ktv-mouth {
+  animation: ktv-rap 0.5s ease-in-out infinite;
+}
+
+@keyframes ktv-rap {
+  0%, 100% { 
+    transform: translateX(-50%) scaleY(1);
+    border-radius: 50%;
+  }
+  50% { 
+    transform: translateX(-50%) scaleY(1.5);
+    border-radius: 20%;
+  }
+}
+
+/* 身体摇摆 */
+.ktv-body {
+  animation: ktv-body-sway 2s ease-in-out infinite;
+}
+
+@keyframes ktv-body-sway {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-1deg); }
+  75% { transform: rotate(1deg); }
+}
+
+/* 手臂摆动 */
+.ktv-arm-left {
+  transform-origin: top center;
+  animation: ktv-arm-left-swing 1s ease-in-out infinite;
+}
+
+.ktv-arm-right {
+  transform-origin: top center;
+  animation: ktv-arm-right-swing 1s ease-in-out infinite;
+}
+
+@keyframes ktv-arm-left-swing {
+  0%, 100% { transform: rotate(-10deg); }
+  50% { transform: rotate(-30deg); }
+}
+
+@keyframes ktv-arm-right-swing {
+  0%, 100% { transform: rotate(10deg); }
+  50% { transform: rotate(30deg); }
+}
+
+/* 腿部动画 */
+.ktv-leg-left {
+  transform-origin: top center;
+  animation: ktv-leg-left-move 1s ease-in-out infinite;
+}
+
+.ktv-leg-right {
+  transform-origin: top center;
+  animation: ktv-leg-right-move 1s ease-in-out infinite;
+}
+
+@keyframes ktv-leg-left-move {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-5deg); }
+}
+
+@keyframes ktv-leg-right-move {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(5deg); }
+}
+
+/* 脚部点地 */
+.ktv-foot {
+  animation: ktv-foot-tap 0.5s ease-in-out infinite;
+}
+
+@keyframes ktv-foot-tap {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.8); }
+}
+
+/* 麦克风摆动 */
+.ktv-mic {
+  transform-origin: bottom center;
+  animation: ktv-mic-sway 1.5s ease-in-out infinite;
+}
+
+@keyframes ktv-mic-sway {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(-15deg); }
+}
+
+/* 音符飘动 */
+.ktv-note {
+  animation: ktv-note-float 2s ease-in-out infinite;
+}
+
+.ktv-note-1 {
+  animation-delay: 0s;
+}
+
+.ktv-note-2 {
+  animation-delay: 0.5s;
+}
+
+.ktv-note-3 {
+  animation-delay: 1s;
+}
+
+@keyframes ktv-note-float {
+  0% { 
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0;
+  }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { 
+    transform: translateY(-30px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* 聚光灯效果 */
+.ktv-spotlight {
+  animation: ktv-spotlight-pulse 3s ease-in-out infinite;
+}
+
+.ktv-spotlight-1 {
+  animation-delay: 0s;
+}
+
+.ktv-spotlight-2 {
+  animation-delay: 1s;
+}
+
+.ktv-spotlight-3 {
+  animation-delay: 2s;
+}
+
+@keyframes ktv-spotlight-pulse {
+  0%, 100% { 
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+}
+
+/* 舞台效果 */
+.ktv-stage {
+  position: relative;
+  box-shadow: 0 -4px 20px rgba(255, 255, 255, 0.1);
+}
+
+.ktv-stage::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.5) 50%, 
+    transparent 100%);
+  animation: ktv-stage-light 2s ease-in-out infinite;
+}
+
+@keyframes ktv-stage-light {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .ktv-character {
+    transform: scale(0.8);
+  }
+  
+  .ktv-spotlight {
+    width: 80px !important;
+    height: 80px !important;
+  }
+}
+
+/* 渐变径向背景工具类 */
+.bg-gradient-radial {
+  background: radial-gradient(circle, var(--tw-gradient-stops));
+}
