@@ -2,39 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Private KTV AI Design System - Beautiful purple-pink gradient theme */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* App Background */
+    --background: 220 14% 96%;
+    --foreground: 224 71% 4%;
 
+    /* Card System */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 224 71% 4%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    /* Purple-Pink Brand Colors */
+    --primary: 271 81% 56%;          /* Purple-600 */
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 271 91% 65%;    /* Lighter purple */
+    --primary-dark: 271 81% 45%;     /* Darker purple */
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Pink Accent */
+    --secondary: 330 81% 60%;        /* Pink-500 */
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 330 81% 70%;  /* Light pink */
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Gradient Colors */
+    --gradient-start: 271 81% 56%;   /* Purple */
+    --gradient-end: 330 81% 60%;     /* Pink */
+    --gradient-player: 271 91% 45%;  /* Darker purple for player */
+    --gradient-player-end: 330 85% 55%; /* Pink for player */
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Neutral Colors */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 8% 46%;
+    --accent: 271 91% 95%;           /* Very light purple */
+    --accent-foreground: 271 81% 56%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Status Colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 48 96% 53%;
+    --warning-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Medal Colors */
+    --gold: 45 93% 58%;
+    --silver: 0 0% 70%;
+    --bronze: 25 76% 60%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Interactive Elements */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 271 81% 56%;
+
+    /* Shadows & Effects */
+    --shadow-card: 0 4px 6px -1px hsl(271 81% 56% / 0.1);
+    --shadow-player: 0 10px 25px -5px hsl(271 81% 56% / 0.3);
+    --shadow-button: 0 2px 4px hsl(271 81% 56% / 0.2);
+
+    /* Gradients */
+    --gradient-main: linear-gradient(135deg, hsl(var(--gradient-start)), hsl(var(--gradient-end)));
+    --gradient-player: linear-gradient(135deg, hsl(var(--gradient-player)), hsl(var(--gradient-player-end)));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
+
+    --radius: 1rem;
 
     --radius: 0.5rem;
 
@@ -56,41 +87,19 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Dark theme maintains same purple-pink brand colors */
+    --background: 224 71% 4%;
+    --foreground: 0 0% 98%;
+    --card: 224 71% 8%;
+    --card-foreground: 0 0% 98%;
+    --muted: 224 71% 10%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 271 81% 15%;
+    --accent-foreground: 271 91% 85%;
+    --border: 224 71% 15%;
+    --input: 224 71% 15%;
+    --gradient-main: linear-gradient(135deg, hsl(271 81% 25%), hsl(330 81% 35%));
+    --gradient-player: linear-gradient(135deg, hsl(271 91% 20%), hsl(330 85% 30%));
   }
 }
 
@@ -100,6 +109,81 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer components {
+  /* Gradient Utilities */
+  .gradient-main {
+    background: var(--gradient-main);
+  }
+  
+  .gradient-player {
+    background: var(--gradient-player);
+  }
+
+  .gradient-subtle {
+    background: var(--gradient-subtle);
+  }
+
+  /* Button Effects */
+  .btn-shadow {
+    box-shadow: var(--shadow-button);
+  }
+
+  .card-shadow {
+    box-shadow: var(--shadow-card);
+  }
+
+  .player-shadow {
+    box-shadow: var(--shadow-player);
+  }
+
+  /* KTV Visualizer Effects */
+  .ktv-glow {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.5);
+  }
+
+  /* Animated Gradients */
+  .gradient-animated {
+    background: linear-gradient(-45deg, 
+      hsl(var(--gradient-start)), 
+      hsl(var(--gradient-end)), 
+      hsl(var(--secondary)), 
+      hsl(var(--primary-light))
+    );
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+  }
+
+  @keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Pulse animations for music elements */
+  .pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Music visualizer bars */
+  .visualizer-bar {
+    animation: visualizerPulse 1s ease-in-out infinite alternate;
+  }
+
+  @keyframes visualizerPulse {
+    from { height: 20%; }
+    to { height: 100%; }
   }
 }
