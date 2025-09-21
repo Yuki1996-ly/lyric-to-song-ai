@@ -193,24 +193,19 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
         analyzeRecording();
       };
 
-      // 开始录音和播放原始音频
+      // 纯清唱模式：只录音，完全不播放任何音乐
+      // 用户可以自由清唱，无时长限制
       mediaRecorderRef.current.start();
       startTimeRef.current = Date.now();
       setIsRecording(true);
       setShowWaveform(true);
-      
-      if (originalAudioRef.current) {
-        originalAudioRef.current.currentTime = 0;
-        originalAudioRef.current.play();
-        setIsPlayingOriginal(true);
-      }
 
       // 开始实时分析
       startRealTimeAnalysis();
 
       toast({
-        title: "🎤 开始跟唱！",
-        description: "跟着音乐一起唱吧！"
+        title: "🎤 开始清唱！",
+        description: "请开始清唱，系统将根据您的声音进行评分！"
       });
     } catch (error) {
       console.error('录音启动失败:', error);
@@ -228,23 +223,33 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setShowWaveform(false);
+      
+      // 停止原始音频播放（如果有的话）
+      if (originalAudioRef.current) {
+        originalAudioRef.current.pause();
+        originalAudioRef.current.currentTime = 0;
+        setIsPlayingOriginal(false);
+      }
+      
+      // 清除实时分析
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      
+      // 停止所有音频轨道
+      if (mediaRecorderRef.current?.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
+      
+      toast({
+        title: "录音结束",
+        description: "正在分析您的清唱表现...",
+      });
+      
+      // 立即进行评分，无论录音时长多短
+      setIsAnalyzing(true);
     }
-
-    if (originalAudioRef.current) {
-      originalAudioRef.current.pause();
-      setIsPlayingOriginal(false);
-    }
-
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-
-    // 停止所有音频轨道
-    if (mediaRecorderRef.current?.stream) {
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-    }
-
-    setIsAnalyzing(true);
   };
 
   // 实时音频分析
@@ -300,67 +305,152 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
     const recordingDuration = (Date.now() - startTimeRef.current) / 1000;
     const analysisData = analysisDataRef.current;
 
+    // 完全移除时长限制，支持任意时长的录音评分
+    // 即使是极短的录音也能获得评分和鼓励
     if (analysisData.length === 0) {
-      toast({
-        title: "录音数据不足",
-        description: "请重新尝试录音",
-        variant: "destructive"
-      });
+      // 如果没有分析数据，给予基础鼓励分
+      const score: KaraokeScore = {
+        totalScore: 50,
+        pitchAccuracy: 50,
+        rhythmStability: 50,
+        volumeControl: 50,
+        beatMatching: 50,
+        details: {
+          recordedDuration,
+          averagePitch: 0,
+          pitchVariance: 0,
+          rhythmConsistency: 50
+        }
+      };
       setIsAnalyzing(false);
+      onScoreCalculated(score);
+      toast({
+        title: "🌟 勇敢尝试！得分: 50",
+        description: "每一次尝试都很棒！继续加油！"
+      });
       return;
     }
 
-    // 计算各项指标
-    const volumes = analysisData.map(d => d.volume);
-    const pitches = analysisData.filter(d => d.pitch > 0).map(d => d.pitch);
+    // 清唱模式音频分析
+    const analysisResults = await analyzePureVocalRecording(analysisData, recordingDuration);
+
+    // 根据录音时长调整评分策略，支持所有时长
+    let finalScore = analysisResults.baseScore;
+    let durationBonus = 0;
     
-    // 音量控制得分 (0-100)
-    const avgVolume = volumes.reduce((sum, v) => sum + v, 0) / volumes.length;
-    const volumeVariance = volumes.reduce((sum, v) => sum + Math.pow(v - avgVolume, 2), 0) / volumes.length;
-    const volumeControl = Math.max(0, 100 - (volumeVariance / avgVolume) * 100);
-
-    // 音高准确度得分 (0-100)
-    const avgPitch = pitches.length > 0 ? pitches.reduce((sum, p) => sum + p, 0) / pitches.length : 0;
-    const pitchVariance = pitches.length > 0 ? pitches.reduce((sum, p) => sum + Math.pow(p - avgPitch, 2), 0) / pitches.length : 0;
-    const pitchAccuracy = pitches.length > 0 ? Math.max(0, 100 - Math.sqrt(pitchVariance) / 10) : 50;
-
-    // 节奏稳定性得分 (0-100)
-    const timeIntervals = analysisData.slice(1).map((d, i) => d.timestamp - analysisData[i].timestamp);
-    const avgInterval = timeIntervals.reduce((sum, i) => sum + i, 0) / timeIntervals.length;
-    const intervalVariance = timeIntervals.reduce((sum, i) => sum + Math.pow(i - avgInterval, 2), 0) / timeIntervals.length;
-    const rhythmStability = Math.max(0, 100 - Math.sqrt(intervalVariance) / avgInterval * 100);
-
-    // 节拍匹配度得分 (0-100) - 简化计算
-    const expectedDuration = originalAudioRef.current?.duration || recordingDuration;
-    const durationDiff = Math.abs(recordingDuration - expectedDuration);
-    const beatMatching = Math.max(0, 100 - (durationDiff / expectedDuration) * 100);
-
-    // 总分计算
-    const totalScore = Math.round(
-      (pitchAccuracy * 0.3 + rhythmStability * 0.25 + volumeControl * 0.25 + beatMatching * 0.2)
-    );
+    if (recordingDuration < 1) {
+      // 超短录音 (0-1秒): 基础分50分 + 10分尝试奖励
+      finalScore = 50 + 10;
+      durationBonus = 10;
+    } else if (recordingDuration < 2) {
+      // 极短录音 (1-2秒): 基础分55分 + 15分鼓励分
+      finalScore = 55 + 15;
+      durationBonus = 15;
+    } else if (recordingDuration < 5) {
+      // 短录音 (2-5秒): 基础评分×0.8 + 20分鼓励分
+      finalScore = analysisResults.baseScore * 0.8 + 20;
+      durationBonus = 20;
+    } else if (recordingDuration < 10) {
+      // 中等录音 (5-10秒): 基础评分×0.9 + 10分奖励
+      finalScore = analysisResults.baseScore * 0.9 + 10;
+      durationBonus = 10;
+    } else {
+      // 长录音 (10秒以上): 标准评分 + 15分完整演唱奖励
+      finalScore = analysisResults.baseScore + 15;
+      durationBonus = 15;
+    }
+    
+    // 确保分数在合理范围内，给予更宽松的下限
+    const totalScore = Math.min(Math.max(finalScore, 40), 100);
 
     const score: KaraokeScore = {
-      totalScore,
-      pitchAccuracy: Math.round(pitchAccuracy),
-      rhythmStability: Math.round(rhythmStability),
-      volumeControl: Math.round(volumeControl),
-      beatMatching: Math.round(beatMatching),
+      totalScore: Math.round(totalScore),
+      pitchAccuracy: analysisResults.pitchScore,
+      rhythmStability: analysisResults.rhythmScore,
+      volumeControl: analysisResults.volumeScore,
+      beatMatching: analysisResults.completenessScore,
       details: {
         recordedDuration,
-        averagePitch: avgPitch,
-        pitchVariance,
-        rhythmConsistency: rhythmStability
+        averagePitch: analysisResults.averagePitch,
+        pitchVariance: analysisResults.pitchVariance,
+        rhythmConsistency: analysisResults.rhythmScore
       }
     };
 
     setIsAnalyzing(false);
     onScoreCalculated(score);
 
+    // 根据录音时长提供不同的反馈
+    let feedbackTitle = `🎉 清唱完成！得分: ${Math.round(totalScore)}`;
+    let feedbackDescription = `音高: ${score.pitchAccuracy} | 节奏: ${score.rhythmStability} | 音量: ${score.volumeControl}`;
+    
+    if (recordingDuration < 1) {
+      feedbackTitle = `🌟 勇敢尝试！得分: ${Math.round(totalScore)}`;
+      feedbackDescription = "每一次尝试都很棒！试试稍长一点的演唱吧！";
+    } else if (recordingDuration < 2) {
+      feedbackTitle = `✨ 很好的开始！得分: ${Math.round(totalScore)}`;
+      feedbackDescription = "勇敢的第一步，继续加油！";
+    } else if (recordingDuration < 5) {
+      feedbackTitle = `🌟 短时间清唱！得分: ${Math.round(totalScore)}`;
+      feedbackDescription += " | 尝试更长时间录音获得更高分数！";
+    } else if (recordingDuration >= 10) {
+      feedbackTitle = `🏆 完整清唱！得分: ${Math.round(totalScore)}`;
+      feedbackDescription += " | 完美的演唱时长！";
+    }
+    
     toast({
-      title: `🎉 跟唱完成！得分: ${totalScore}`,
-      description: `音高: ${score.pitchAccuracy} | 节奏: ${score.rhythmStability} | 音量: ${score.volumeControl}`
+      title: feedbackTitle,
+      description: feedbackDescription
     });
+  };
+
+  // 纯人声录音分析算法
+  const analyzePureVocalRecording = async (analysisData: AudioAnalysisData[], recordingDuration: number): Promise<{
+    baseScore: number;
+    pitchScore: number;
+    rhythmScore: number;
+    volumeScore: number;
+    completenessScore: number;
+    averagePitch: number;
+    pitchVariance: number;
+  }> => {
+    // 计算各项指标
+    const volumes = analysisData.map(d => d.volume);
+    const pitches = analysisData.filter(d => d.pitch > 0).map(d => d.pitch);
+    
+    // 音量控制得分 (25分)
+    const avgVolume = volumes.reduce((sum, v) => sum + v, 0) / volumes.length;
+    const volumeVariance = volumes.reduce((sum, v) => sum + Math.pow(v - avgVolume, 2), 0) / volumes.length;
+    const volumeScore = Math.round(Math.max(0, 25 - (volumeVariance / avgVolume) * 25));
+
+    // 音高准确度得分 (25分)
+    const avgPitch = pitches.length > 0 ? pitches.reduce((sum, p) => sum + p, 0) / pitches.length : 0;
+    const pitchVariance = pitches.length > 0 ? pitches.reduce((sum, p) => sum + Math.pow(p - avgPitch, 2), 0) / pitches.length : 0;
+    const pitchScore = pitches.length > 0 ? Math.round(Math.max(0, 25 - Math.sqrt(pitchVariance) / 40)) : 12;
+
+    // 节奏稳定性得分 (25分)
+    const timeIntervals = analysisData.slice(1).map((d, i) => d.timestamp - analysisData[i].timestamp);
+    const avgInterval = timeIntervals.reduce((sum, i) => sum + i, 0) / timeIntervals.length;
+    const intervalVariance = timeIntervals.reduce((sum, i) => sum + Math.pow(i - avgInterval, 2), 0) / timeIntervals.length;
+    const rhythmScore = Math.round(Math.max(0, 25 - Math.sqrt(intervalVariance) / avgInterval * 25));
+
+    // 演唱完整性得分 (25分) - 基于录音时长和音频连续性
+    const continuityScore = Math.min(recordingDuration / 10, 1) * 15; // 时长奖励
+    const consistencyScore = Math.min(analysisData.length / 100, 1) * 10; // 数据连续性
+    const completenessScore = Math.round(continuityScore + consistencyScore);
+    
+    // 计算基础总分
+    const baseScore = pitchScore + rhythmScore + volumeScore + completenessScore;
+    
+    return {
+      baseScore,
+      pitchScore,
+      rhythmScore,
+      volumeScore,
+      completenessScore,
+      averagePitch: avgPitch,
+      pitchVariance
+    };
   };
 
   // 切换原始音频播放
@@ -383,8 +473,18 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
       <CardContent className="p-6 space-y-6">
         {/* 标题 */}
         <div className="text-center">
-          <h3 className="text-2xl font-bold mb-2">🎤 KTV跟唱模式</h3>
-          <p className="text-purple-200">跟着原唱一起演唱，AI将为您的表现打分！</p>
+          <h3 className="text-2xl font-bold mb-2">🎤 自由清唱模式</h3>
+          <p className="text-purple-200">想唱多久就唱多久，每一次尝试都值得鼓励！</p>
+          <p className="text-sm text-yellow-300 mt-1">⏱️ 无时长限制，随时停止即可评分</p>
+        </div>
+
+        {/* 清唱模式说明 */}
+        <div className="text-center mb-4">
+          <div className="bg-white/10 rounded-lg p-3 border border-white/20">
+            <p className="text-sm text-white/80">
+              🌟 自由清唱模式：无伴奏、无压力，展现您的纯净嗓音
+            </p>
+          </div>
         </div>
 
         {/* 歌词显示区域 */}
@@ -465,7 +565,7 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
                 className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 text-lg"
               >
                 <Mic className="w-5 h-5 mr-2" />
-                {isAnalyzing ? "分析中..." : "开始跟唱"}
+                {isAnalyzing ? "分析中..." : "开始自由清唱"}
               </Button>
               
               <Button
@@ -483,7 +583,7 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
               className="bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 text-lg"
             >
               <Square className="w-5 h-5 mr-2" />
-              停止录音
+              停止并评分
             </Button>
           )}
         </div>
