@@ -58,7 +58,7 @@ const Index = () => {
         description: "现在正在为您的歌词配上音乐...",
       });
 
-      const audioBlob = await minimaxApi.generateMusic(lyrics, style, tempo);
+      const audioBlob = await minimaxApi.generateMusic(lyrics, style, tempo, dialect);
       const audioUrl = minimaxApi.createAudioUrl(audioBlob);
 
       // 将生成的歌曲数据存储到localStorage或状态管理中

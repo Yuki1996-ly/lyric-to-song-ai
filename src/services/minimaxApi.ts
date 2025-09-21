@@ -45,14 +45,15 @@ export class MiniMaxAPI {
    * @param lyrics 歌词内容
    * @param style 音乐风格
    * @param tempo 节奏
+   * @param dialect 方言选择
    * @returns 音频文件的Blob对象
    */
-  async generateMusic(lyrics: string, style: string, tempo: string): Promise<Blob> {
+  async generateMusic(lyrics: string, style: string, tempo: string, dialect: string = 'mandarin'): Promise<Blob> {
     // 参数验证
     this.validateInputs(lyrics, style, tempo);
     
-    // 根据风格和节奏生成prompt
-    const prompt = this.generatePrompt(style, tempo);
+    // 根据风格、节奏和方言生成prompt
+    const prompt = this.generatePrompt(style, tempo, dialect);
 
     const request: MiniMaxRequest = {
       model: 'music-1.5',
@@ -144,10 +145,10 @@ export class MiniMaxAPI {
   }
 
   /**
-   * 根据风格和节奏生成专业的音乐描述prompt
+   * 根据风格、节奏和方言生成专业的音乐描述prompt
    * 参考MiniMax API文档示例格式："独立民谣,忧郁,内省,渴望,独自漫步,咖啡馆"
    */
-  private generatePrompt(style: string, tempo: string): string {
+  private generatePrompt(style: string, tempo: string, dialect: string = 'mandarin'): string {
     // 音乐风格的详细描述映射
     const stylePrompts: Record<string, string> = {
       'pop': '流行音乐,现代感,朗朗上口,商业化,主流,时尚,青春活力,都市生活',
@@ -166,6 +167,15 @@ export class MiniMaxAPI {
       'very-fast': '极快节奏,高能量,激烈,紧张感,爆发力,狂热,刺激'
     };
 
+    // 方言演唱风格的描述映射
+    const dialectPrompts: Record<string, string> = {
+      'mandarin': '标准普通话演唱,清晰发音,标准音调',
+      'sichuan': '四川话演唱,川味浓郁,方言韵味,巴适感觉',
+      'cantonese': '粤语演唱,港式风格,粤语发音特色,广东韵味',
+      'northeast': '东北话演唱,豪爽大气,东北方言特色,老铁风格',
+      'shanghai': '上海话演唱,江南韵味,上海方言特色,海派文化'
+    };
+
     // 通用的高质量音乐制作描述
     const qualityPrompts = [
       '高质量制作',
@@ -178,10 +188,11 @@ export class MiniMaxAPI {
 
     const styleDesc = stylePrompts[style] || stylePrompts.pop;
     const tempoDesc = tempoPrompts[tempo] || tempoPrompts.medium;
+    const dialectDesc = dialectPrompts[dialect] || dialectPrompts.mandarin;
     const qualityDesc = qualityPrompts.join(',');
 
-    // 按照MiniMax API推荐的格式组合prompt
-    return `${styleDesc},${tempoDesc},${qualityDesc}`;
+    // 按照MiniMax API推荐的格式组合prompt，融入方言特色
+    return `${styleDesc},${tempoDesc},${dialectDesc},${qualityDesc}`;
   }
 
   /**
