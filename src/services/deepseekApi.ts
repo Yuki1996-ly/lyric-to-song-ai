@@ -41,8 +41,8 @@ export class DeepSeekAPI {
    * @param tempo 节奏
    * @returns 生成的歌词
    */
-  async generateLyrics(diaryText: string, style: string, tempo: string): Promise<string> {
-    const systemPrompt = this.buildSystemPrompt(style, tempo);
+  async generateLyrics(diaryText: string, style: string, tempo: string, dialect: string = 'mandarin'): Promise<string> {
+    const systemPrompt = this.buildSystemPrompt(style, tempo, dialect);
 
     const userPrompt = `请根据以下内容创作歌词：
 
@@ -50,8 +50,9 @@ ${diaryText}
 
 音乐风格：${style}
 节奏：${tempo}
+方言：${dialect}
 
-请严格按照系统提示的要求创作，确保歌词结构完整、情感表达到位、韵律优美。`;
+请严格按照系统提示的要求创作，确保歌词结构完整、情感表达到位、韵律优美，并体现所选方言的特色。`;
 
     const request: DeepSeekRequest = {
       model: 'deepseek-chat',
@@ -124,7 +125,7 @@ ${diaryText}
       }
       
       // 生成备用歌词
-      const fallbackLyrics = this.generateFallbackLyrics(diaryText, style, tempo);
+      const fallbackLyrics = this.generateFallbackLyrics(diaryText, style, tempo, dialect);
       console.log('✅ 备用歌词生成完成，长度:', fallbackLyrics.length);
       return fallbackLyrics;
     }
@@ -133,7 +134,7 @@ ${diaryText}
   /**
    * 生成备用歌词（参考deepseek.ts的实现）
    */
-  private generateFallbackLyrics(inputText: string, style: string, tempo: string): string {
+  private generateFallbackLyrics(inputText: string, style: string, tempo: string, dialect: string = 'mandarin'): string {
     const firstLine = inputText.split('，')[0] || inputText.slice(0, 20);
     const lastPart = inputText.slice(-30) || '每一个瞬间都值得记录';
     
@@ -190,18 +191,20 @@ ${lastPart}
   }
 
   /**
-   * 根据音乐风格和节奏构建专业的系统提示词
-   * 统一使用rap格式结构，但针对不同风格调整内容特色
+   * 根据音乐风格、节奏和方言构建专业的系统提示词
+   * 统一使用rap格式结构，但针对不同风格和方言调整内容特色
    */
-  private buildSystemPrompt(style: string, tempo: string): string {
+  private buildSystemPrompt(style: string, tempo: string, dialect: string = 'mandarin'): string {
     // 获取风格特色描述
     const styleCharacteristics = this.getStyleCharacteristics(style);
+    // 获取方言特色描述
+    const dialectCharacteristics = this.getDialectCharacteristics(dialect);
     
     return `角色设定 
-你是一名专业的${styleCharacteristics.genre}歌词创作助手，熟悉 ${styleCharacteristics.subGenres} 等音乐风格，擅长把用户的日常生活片段转化为完整的歌曲歌词。 
+你是一名专业的${styleCharacteristics.genre}歌词创作助手，熟悉 ${styleCharacteristics.subGenres} 等音乐风格，擅长把用户的日常生活片段转化为完整的${dialectCharacteristics.name}歌曲歌词。 
 
 输出目标 
-根据用户输入的生活内容，生成一首完整的${style}风格歌曲歌词（中文）。歌词应具有清晰的歌曲结构（Verse、Chorus、Bridge、Outro），并带有${styleCharacteristics.emotion}和节奏感。 
+根据用户输入的生活内容，生成一首完整的${style}风格歌曲歌词（${dialectCharacteristics.name}）。歌词应具有清晰的歌曲结构（Verse、Chorus、Bridge、Outro），并带有${styleCharacteristics.emotion}和节奏感。 
 
 创作要求 
 
@@ -231,11 +234,25 @@ Outro（结尾）：收尾，总结主题。
 
 语言特点：${styleCharacteristics.languageStyle}
 
+方言特色 
+
+语言风格：${dialectCharacteristics.name}
+
+特色词汇：${dialectCharacteristics.vocabulary}
+
+表达方式：${dialectCharacteristics.expressions}
+
+文化特色：${dialectCharacteristics.culture}
+
 内容处理 
 
 保留用户输入的核心事件与关键词。 
 
 将普通描述转化为富有画面感和节奏感的歌词。 
+
+融入${dialectCharacteristics.name}的特色词汇和表达方式。
+
+保持方言的地域文化特色和情感色彩。
 
 加入${styleCharacteristics.specialElements}来增强${style}风格效果。 
 
@@ -349,6 +366,46 @@ Outro（结尾）：收尾，总结主题。
     };
 
     return tempoMap[tempo as keyof typeof tempoMap] || tempoMap.medium;
+  }
+
+  /**
+   * 获取方言特色描述
+   */
+  private getDialectCharacteristics(dialect: string) {
+    const dialectMap = {
+      'mandarin': {
+        name: '普通话',
+        vocabulary: '标准词汇，规范表达',
+        expressions: '清晰准确，语法规范',
+        culture: '现代都市文化，包容开放'
+      },
+      'sichuan': {
+        name: '四川话',
+        vocabulary: '巴适、安逸、撒子、瓜娃子、雄起、莽子、嘿人、板眼',
+        expressions: '语调上扬，语气亲切，多用叠词和语气词',
+        culture: '川蜀文化，火辣热情，乐观豁达，麻辣生活'
+      },
+      'cantonese': {
+        name: '粤语',
+        vocabulary: '靓仔、靓女、好犀利、冇问题、搞掂、威水、抵赞、正嘢',
+        expressions: '语调丰富，节奏明快，多用语气助词',
+        culture: '岭南文化，务实进取，包容并蓄，国际化视野'
+      },
+      'northeast': {
+        name: '东北话',
+        vocabulary: '嘎哈、老铁、贼拉、整点啥、磕碜、埋汰、老鼻子了、杠杠滴',
+        expressions: '语调豪放，幽默风趣，多用夸张表达',
+        culture: '东北文化，豪爽直率，幽默乐观，重情重义'
+      },
+      'shanghai': {
+        name: '上海话',
+        vocabulary: '侬好、蛮好、交关、老灵额、赞伐、噶许、白相、作兴',
+        expressions: '语调柔和，节奏舒缓，多用委婉表达',
+        culture: '海派文化，精致优雅，开放包容，时尚前卫'
+      }
+    };
+    
+    return dialectMap[dialect as keyof typeof dialectMap] || dialectMap.mandarin;
   }
 }
 

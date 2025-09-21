@@ -14,6 +14,7 @@ const Index = () => {
   const [diaryText, setDiaryText] = useState("");
   const [style, setStyle] = useState("");
   const [tempo, setTempo] = useState("");
+  const [dialect, setDialect] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState("");
   const navigate = useNavigate();
@@ -29,10 +30,10 @@ const Index = () => {
       return;
     }
 
-    if (!style || !tempo) {
+    if (!style || !tempo || !dialect) {
       toast({
-        title: "选择风格和节奏",
-        description: "请选择音乐风格和节奏来生成您的歌曲。",
+        title: "选择风格、节奏和方言",
+        description: "请选择音乐风格、节奏和方言来生成您的歌曲。",
         variant: "destructive",
       });
       return;
@@ -48,7 +49,7 @@ const Index = () => {
         description: "AI正在根据您的文字生成歌词...",
       });
 
-      const lyrics = await deepseekApi.generateLyrics(diaryText, style, tempo);
+      const lyrics = await deepseekApi.generateLyrics(diaryText, style, tempo, dialect);
       
       // 第二步：生成音乐
       setGenerationStep("正在生成音乐...");
@@ -68,6 +69,7 @@ const Index = () => {
         audioUrl: audioUrl,
         style: style,
         tempo: tempo,
+        dialect: dialect,
         originalText: diaryText,
         createdAt: new Date().toISOString()
       };
@@ -130,7 +132,7 @@ const Index = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-base font-medium block mb-2">Music Style 🎼</label>
                   <Select value={style} onValueChange={setStyle}>
@@ -159,6 +161,22 @@ const Index = () => {
                       <SelectItem value="medium">🚶 Medium Pace</SelectItem>
                       <SelectItem value="fast">🏃 Fast & Energetic</SelectItem>
                       <SelectItem value="very-fast">⚡ Lightning Fast</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-base font-medium block mb-2">方言选择 🗣️</label>
+                  <Select value={dialect} onValueChange={setDialect}>
+                    <SelectTrigger className="h-12">
+                      <SelectValue placeholder="选择方言" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mandarin">🗣️ 普通话（标准）</SelectItem>
+                      <SelectItem value="sichuan">🌶️ 四川话</SelectItem>
+                      <SelectItem value="cantonese">🏮 粤语（广东话）</SelectItem>
+                      <SelectItem value="northeast">❄️ 东北话</SelectItem>
+                      <SelectItem value="shanghai">🏙️ 上海话</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

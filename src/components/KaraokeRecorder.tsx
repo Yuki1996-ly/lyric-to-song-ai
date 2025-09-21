@@ -8,7 +8,7 @@ import AudioWaveform from './AudioWaveform';
 
 interface KaraokeRecorderProps {
   originalAudioUrl: string;
-  lyrics: Array<{time: number, text: string}>;
+  lyrics: string; // 改为字符串格式的歌词
   onScoreCalculated: (score: KaraokeScore) => void;
   isVisible: boolean;
 }
@@ -39,6 +39,7 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
   const [isPlayingOriginal, setIsPlayingOriginal] = useState(false);
   const [recordingProgress, setRecordingProgress] = useState(0);
   const [currentLyricIndex, setCurrentLyricIndex] = useState(0);
+  const [parsedLyrics, setParsedLyrics] = useState<Array<{time: number, text: string}>>([]);
   const [hasPermission, setHasPermission] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [realTimeScore, setRealTimeScore] = useState(0);
@@ -93,6 +94,32 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
     };
   }, [originalAudioUrl]);
 
+  // 解析歌词
+  useEffect(() => {
+    const parseLyrics = (lyricsText: string) => {
+      const lines = lyricsText.split('\n').filter(line => line.trim());
+      const parsed: Array<{time: number, text: string}> = [];
+      let currentTime = 0;
+      
+      lines.forEach((line, index) => {
+        // 移除结构标签如[Verse], [Chorus]等
+        const cleanLine = line.replace(/\[.*?\]/g, '').trim();
+        if (cleanLine) {
+          parsed.push({
+            time: currentTime,
+            text: cleanLine
+          });
+          // 假设每行歌词持续3秒
+          currentTime += 3;
+        }
+      });
+      
+      return parsed;
+    };
+    
+    setParsedLyrics(parseLyrics(lyrics));
+  }, [lyrics]);
+
   // 处理原始音频时间更新
   const handleOriginalAudioTimeUpdate = useCallback(() => {
     if (!originalAudioRef.current) return;
@@ -105,15 +132,15 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
     }
     
     // 更新当前歌词
-    const lyricIndex = lyrics.findIndex((lyric, index) => {
-      const nextLyric = lyrics[index + 1];
+    const lyricIndex = parsedLyrics.findIndex((lyric, index) => {
+      const nextLyric = parsedLyrics[index + 1];
       return lyric.time <= currentTime && (!nextLyric || nextLyric.time > currentTime);
     });
     
     if (lyricIndex !== -1) {
       setCurrentLyricIndex(lyricIndex);
     }
-  }, [lyrics]);
+  }, [parsedLyrics]);
 
   // 处理原始音频结束
   const handleOriginalAudioEnded = useCallback(() => {
@@ -360,11 +387,29 @@ const KaraokeRecorder = ({ originalAudioUrl, lyrics, onScoreCalculated, isVisibl
           <p className="text-purple-200">跟着原唱一起演唱，AI将为您的表现打分！</p>
         </div>
 
-        {/* 当前歌词显示 */}
-        <div className="bg-black/30 rounded-lg p-4 min-h-[100px] flex items-center justify-center">
-          <p className="text-xl font-medium text-center leading-relaxed">
-            {lyrics[currentLyricIndex]?.text || "准备开始跟唱..."}
-          </p>
+        {/* 歌词显示区域 */}
+        <div className="bg-black/30 rounded-lg p-4 min-h-[200px] max-h-[300px] overflow-y-auto">
+          <div className="space-y-2">
+            {parsedLyrics.map((lyric, index) => (
+              <div
+                key={index}
+                className={`text-lg leading-relaxed transition-all duration-300 p-2 rounded ${
+                  index === currentLyricIndex
+                    ? 'bg-purple-600/50 text-yellow-300 font-bold text-xl transform scale-105 shadow-lg'
+                    : index < currentLyricIndex
+                    ? 'text-gray-400 opacity-60'
+                    : 'text-white opacity-80'
+                }`}
+              >
+                {lyric.text}
+              </div>
+            ))}
+            {parsedLyrics.length === 0 && (
+              <p className="text-xl font-medium text-center leading-relaxed text-purple-200">
+                准备开始跟唱...
+              </p>
+            )}
+          </div>
         </div>
 
         {/* 实时波形显示 */}

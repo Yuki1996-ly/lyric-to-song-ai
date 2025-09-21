@@ -18,6 +18,7 @@ interface SongData {
   audioUrl: string;
   style: string;
   tempo: string;
+  dialect?: string;
   originalText: string;
   createdAt: string;
 }
@@ -218,6 +219,18 @@ const PlayerPage = () => {
     localStorage.setItem('karaokeScores', JSON.stringify(existingScores));
   };
 
+  // 获取方言显示名称
+  const getDialectDisplayName = (dialect: string) => {
+    const dialectNames: Record<string, string> = {
+      'mandarin': '普通话',
+      'sichuan': '四川话',
+      'cantonese': '粤语',
+      'northeast': '东北话',
+      'shanghai': '上海话'
+    };
+    return dialectNames[dialect] || '普通话';
+  };
+
   // 开始跟唱模式
   const startKaraokeMode = () => {
     if (audioRef.current) {
@@ -268,7 +281,14 @@ const PlayerPage = () => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold">{songData.title}</h2>
-                <p className="text-muted-foreground">AI生成 • {songData.style} • {songData.tempo}</p>
+                <p className="text-muted-foreground">
+                  AI生成 • {songData.style} • {songData.tempo}
+                  {songData.dialect && (
+                    <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                      {getDialectDisplayName(songData.dialect)}
+                    </span>
+                  )}
+                </p>
               </div>
               <Button 
                 onClick={handleSave}
@@ -412,11 +432,11 @@ const PlayerPage = () => {
           </CardContent>
         </Card>
 
-        {/* 跟唱功能 */}
-        {showKaraoke && songData && (
+        {/* KaraokeRecorder组件 */}
+        {showKaraoke && (
           <KaraokeRecorder
             originalAudioUrl={songData.audioUrl}
-            lyrics={parsedLyrics}
+            lyrics={songData.lyrics}
             onScoreCalculated={handleKaraokeScore}
             isVisible={showKaraoke}
           />
