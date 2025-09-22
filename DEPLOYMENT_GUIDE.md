@@ -1,18 +1,38 @@
 # 🚀 歌词转音乐AI项目部署指南
 
-## 📊 构建结果分析
+## 📋 部署前准备
 
-✅ **构建成功完成**
-- 构建时间: 19.39秒
-- 生成文件:
-  - `index.html`: 1.61 kB (gzip: 0.63 kB)
-  - `index-Bl5xfxLN.css`: 73.67 kB (gzip: 13.00 kB)
-  - `index-DqLmJfGv.js`: 564.55 kB (gzip: 184.96 kB)
+### 1. 环境要求
+- Node.js 18+ 
+- npm 或 yarn
+- Git
 
-⚠️ **性能优化建议**
-- JS文件较大(564.55 kB)，建议考虑代码分割
-- 可使用动态导入(`import()`)进行代码分割
-- 配置`build.rollupOptions.output.manualChunks`优化分块
+### 2. 项目构建
+```bash
+# 安装依赖
+npm install
+
+# 构建生产版本
+npm run build
+```
+
+**构建结果验证**:
+- ✅ 构建成功完成 (耗时约 13.72秒)
+- ✅ 生成文件: `dist/index.html`, `dist/assets/index-Bl5xfxLN.css`, `dist/assets/index-C16BhpmN.js`
+- ⚠️ JS文件较大 (567.24 kB)，建议启用代码分割优化
+
+### 3. 环境变量配置
+复制 `.env.example` 为 `.env` 并配置以下变量：
+
+```env
+# DeepSeek API配置 (用于歌词生成)
+VITE_DEEPSEEK_API_KEY=sk-your-deepseek-api-key-here
+VITE_DEEPSEEK_BASE_URL=https://api.deepseek.com
+
+# MiniMax API配置 (用于音乐生成)
+VITE_MINIMAX_API_KEY=your-minimax-jwt-token-here
+VITE_MINIMAX_BASE_URL=https://api.minimax.chat
+```
 
 ## 🌐 部署选项
 
